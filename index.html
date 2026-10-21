@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tâches — planning partagé</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f1;--card:#fff;--ink:#14302f;--mute:#5d7472;--line:#d3dedc;--accent:#0f6b66;--late:#c23b2e;--soon:#c98a12;--ok:#3d8a5a;--r:14px;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-t=l]){--bg:#0f1b1a;--card:#172625;--ink:#e3efed;--mute:#8fa8a5;--line:#2a3f3d;--accent:#4cc2b9;--late:#ee7a6d;--soon:#e8b84a;--ok:#6fc48c;color-scheme:dark}}
+*{box-sizing:border-box}
+html{height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:400 16px/1.45 "Bricolage Grotesque",system-ui,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+header{max-width:760px;margin:0 auto;padding:28px 18px 8px;display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+h1{margin:0;font-size:clamp(2rem,6vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1}
+.sub{color:var(--mute);margin:6px 0 0;font-size:.95rem}
+.bar{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+@media (prefers-color-scheme:dark){:root:not([data-t=l]) .pri{color:#082523}}
+.danger{color:var(--late)}
+main{max-width:760px;margin:0 auto;padding:12px 18px 60px;display:grid;gap:12px}
+.banner{background:var(--card);border:1px dashed var(--line);border-radius:var(--r);padding:10px 14px;color:var(--mute);font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--ok);border-radius:var(--r);padding:16px 18px;display:grid;gap:10px}
+.card.late{border-left-color:var(--late)}.card.soon{border-left-color:var(--soon)}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:start}
+h2{margin:0;font-size:1.25rem;font-weight:600;letter-spacing:-.01em}
+.due{font-weight:800;font-size:1.05rem;white-space:nowrap;color:var(--ok)}
+.late .due{color:var(--late)}.soon .due{color:var(--soon)}
+.desc{margin:0;color:var(--mute)}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.88rem;color:var(--mute)}
+.act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+details{font-size:.88rem;color:var(--mute)}
+summary{cursor:pointer}
+details ul{margin:6px 0 0;padding-left:18px}
+.chip{display:inline-block;margin-top:4px;padding:1px 10px;border-radius:99px;font-size:.82rem;border:1px solid var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.catlist{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:8px}
+.catlist li{display:flex;align-items:center;gap:10px}
+.catlist li span:nth-child(2){flex:1}
+.sw{width:18px;height:18px;border-radius:50%;flex:none}
+input[type=color]{padding:2px;height:38px}
+[hidden]{display:none!important}
+.card.done{border-left-color:var(--mute);opacity:.7}.done .due{color:var(--mute)}
+.empty{text-align:center;padding:48px 12px;color:var(--mute)}
+dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--ink);width:min(440px,92vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+label{display:grid;gap:4px;font-size:.9rem;color:var(--mute);margin-bottom:12px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.end{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Tâches</h1>
+    <p class="sub" id="who"></p>
+  </div>
+  <div class="bar">
+    <button id="bName">Mon prénom</button>
+    <button id="bCats">Catégories</button>
+    <button id="bShare">Copier le lien</button>
+    <button class="pri" id="bNew">Nouvelle tâche</button>
+  </div>
+</header>
+<main id="list"></main>
+
+<dialog id="dlg">
+  <form method="dialog" id="f">
+    <label>Nom de la tâche<input id="fName" required maxlength="60"></label>
+    <label>Description<textarea id="fDesc" rows="2" maxlength="300"></textarea></label>
+    <label>Catégorie<select id="fCat"></select></label>
+    <label>Type<select id="fType"><option value="rec">Fréquence (reprogrammée automatiquement)</option><option value="once">Date d’échéance (je choisis la suivante)</option></select></label>
+    <div class="row" id="fRec">
+      <label>Tous les<input id="fN" type="number" min="1" max="365" value="7" required></label>
+      <label>Unité<select id="fU"><option value="d">jours</option><option value="w">semaines</option><option value="m">mois</option></select></label>
+    </div>
+    <label><span id="fDueL">Prochaine échéance</span><input id="fDue" type="date" required></label>
+    <div class="end">
+      <button type="button" id="fCancel">Annuler</button>
+      <button class="pri" id="fOk" value="ok">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="dlgCat">
+  <h2 style="margin-bottom:12px">Catégories</h2>
+  <ul class="catlist" id="catList"></ul>
+  <div class="row" style="align-items:end">
+    <label style="margin:0">Nouvelle catégorie<input id="cName" maxlength="30"></label>
+    <label style="margin:0;flex:none;width:64px">Couleur<input id="cColor" type="color" value="#0f6b66"></label>
+  </div>
+  <div class="end"><button id="cClose">Fermer</button><button class="pri" id="cAdd">Ajouter</button></div>
+</dialog>
+<dialog id="dlgNext">
+  <h2 id="nName" style="margin-bottom:12px"></h2>
+  <label>Prochaine date d’échéance<input id="nDate" type="date"></label>
+  <div class="end">
+    <button id="nCancel">Annuler</button>
+    <button class="danger" id="nEnd">Terminer sans suite</button>
+    <button class="pri" id="nOk">Reprogrammer</button>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+/* ===== 1. Configuration Firebase (voir README plus bas) =====
+   Laisser apiKey vide = mode démo local (données dans ce navigateur uniquement). */
+const firebaseConfig = {
+  apiKey: "AIzaSyBqqyxKhXRJy6cvxHlgaT47htYvWETsCe8",
+  authDomain: "taches-maison-e065c.firebaseapp.com",
+  projectId: "taches-maison-e065c",
+  appId: "1:609904939892:web:7e1b67dae1ed637ac85221"
+};
+
+/* ===== 2. Identifiant du foyer : le lien partagé contient #code ===== */
+if (!location.hash.slice(1)) location.hash = Math.random().toString(36).slice(2, 10);
+const home = () => location.hash.slice(1);
+const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
+const configured = !!firebaseConfig.apiKey;
+
+/* ===== 3. Couche de stockage : Firestore ou local ===== */
+async function makeStore() {
+  if (configured) {
+    const { initializeApp } = await import(FB + "firebase-app.js");
+    const { getAuth, signInAnonymously } = await import(FB + "firebase-auth.js");
+    const fs = await import(FB + "firebase-firestore.js");
+    const app = initializeApp(firebaseConfig);
+    await signInAnonymously(getAuth(app));
+    const db = fs.getFirestore(app);
+    const col = k => fs.collection(db, "households", home(), k);
+    return {
+      subscribe: (k, cb) => fs.onSnapshot(col(k), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      add: (k, t) => fs.addDoc(col(k), t),
+      update: (k, id, p) => fs.updateDoc(fs.doc(col(k), id), p),
+      remove: (k, id) => fs.deleteDoc(fs.doc(col(k), id))
+    };
+  }
+  const key = k => "menage:" + home() + (k === "tasks" ? "" : ":" + k);
+  const data = {}, cbs = {};
+  const get = k => data[k] ??= JSON.parse(localStorage.getItem(key(k)) || "[]");
+  const save = k => { localStorage.setItem(key(k), JSON.stringify(data[k])); cbs[k]?.(data[k].slice()); };
+  return {
+    subscribe: (k, f) => { cbs[k] = f; f(get(k).slice()); },
+    add: (k, t) => { get(k).push({ id: crypto.randomUUID(), ...t }); save(k); },
+    update: (k, id, p) => { data[k] = get(k).map(i => i.id === id ? { ...i, ...p } : i); save(k); },
+    remove: (k, id) => { data[k] = get(k).filter(i => i.id !== id); save(k); }
+  };
+}
+
+/* ===== 4. Dates ===== */
+const DAY = 864e5;
+const startOf = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+function addFreq(ms, n, u) {
+  const d = new Date(ms);
+  if (u === "m") d.setMonth(d.getMonth() + n); else d.setDate(d.getDate() + n * (u === "w" ? 7 : 1));
+  return d.getTime();
+}
+const fmt = ms => new Date(ms).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+const toInput = ms => { const d = new Date(ms), p = x => String(x).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
+const freqLabel = t => `Tous les ${t.n} ${{ d: "jours", w: "semaines", m: "mois" }[t.u]}`.replace(/^Tous les 1 jours/, "Chaque jour").replace(/^Tous les 1 semaines/, "Chaque semaine").replace(/^Tous les 1 mois/, "Chaque mois");
+function dueInfo(ms) {
+  const diff = Math.round((startOf(ms) - startOf(Date.now())) / DAY);
+  if (diff < 0) return { cls: "late", txt: `En retard de ${-diff} j` };
+  if (diff === 0) return { cls: "soon", txt: "Aujourd’hui" };
+  if (diff === 1) return { cls: "soon", txt: "Demain" };
+  return { cls: diff <= 2 ? "soon" : "", txt: `Dans ${diff} j` };
+}
+
+/* ===== 5. Interface ===== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let user = localStorage.getItem("menage:user") || "";
+let tasks = [], cats = [], editing = null, store;
+const PAL = ["#0f6b66", "#c23b2e", "#c98a12", "#3d8a5a", "#3b6fd1", "#8a4fb3", "#d1568f", "#6b7280"];
+const okColor = c => /^#[0-9a-f]{6}$/i.test(c) ? c : "#6b7280";
+
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 2200); }
+function askName(force) {
+  if (user && !force) return true;
+  const n = (prompt("Ton prénom (il apparaîtra dans l’historique) :", user) || "").trim();
+  if (n) { user = n.slice(0, 30); localStorage.setItem("menage:user", user); render(); }
+  return !!user;
+}
+
+function render() {
+  $("who").textContent = user ? `Connecté·e : ${user}` : "Indique ton prénom pour valider des tâches";
+  const sorted = [...tasks].sort((a, b) => (!!a.done - !!b.done) || a.due - b.due);
+  const banner = configured ? "" : `<div class="banner">Mode démo : les données restent dans ce navigateur. Renseigne <code>firebaseConfig</code> pour partager le planning.</div>`;
+  if (!sorted.length) { $("list").innerHTML = banner + `<div class="empty">Aucune tâche pour l’instant.<br>Ajoute la première avec « Nouvelle tâche ».</div>`; return; }
+  $("list").innerHTML = banner + sorted.map(t => {
+    const di = t.done ? { cls: "done", txt: "Terminée" } : dueInfo(t.due), last = (t.history || [])[0], cat = cats.find(c => c.id === t.cat);
+    const hist = (t.history || []).slice(0, 10).map(h => `<li>${fmt(h.at)} — ${esc(h.by)}</li>`).join("");
+    return `<article class="card ${di.cls}" data-id="${t.id}">
+      <div class="top"><div><h2>${esc(t.name)}</h2>${cat ? `<span class="chip" style="--c:${okColor(cat.color)}">${esc(cat.name)}</span>` : ""}</div><span class="due">${di.txt}</span></div>
+      ${t.desc ? `<p class="desc">${esc(t.desc)}</p>` : ""}
+      <div class="meta"><span>${t.once ? "Date d’échéance" : freqLabel(t)}</span>${t.done ? "" : `<span>${t.once ? "Échéance" : "Prévue"} le ${fmt(t.due)}</span>`}<span>${last ? `Dernière fois : ${fmt(last.at)}, ${esc(last.by)}` : "Jamais faite"}</span></div>
+      <div class="act">${t.done ? '<button class="pri" data-a="reopen">Rouvrir</button>' : '<button class="pri" data-a="done">Fait</button>'}<button data-a="edit">Modifier</button><button class="danger" data-a="del">Supprimer</button></div>
+      ${hist ? `<details><summary>Historique</summary><ul>${hist}</ul></details>` : ""}
+    </article>`;
+  }).join("");
+}
+
+$("list").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-a]"); if (!b) return;
+  const t = tasks.find(x => x.id === b.closest("article").dataset.id); if (!t) return;
+  if (b.dataset.a === "done") {
+    if (!askName()) return;
+    const now = Date.now();
+    const history = [{ at: now, by: user }, ...(t.history || [])].slice(0, 30);
+    if (t.once) { nextFor = { t, history }; $("nName").textContent = t.name; $("nDate").value = toInput(addFreq(t.due, 1, "m")); $("dlgNext").showModal(); return; }
+    await store.update("tasks", t.id, { history, due: addFreq(now, t.n, t.u) });
+    toast(`« ${t.name} » validée, reprogrammée`);
+  } else if (b.dataset.a === "reopen") await store.update("tasks", t.id, { done: false });
+  else if (b.dataset.a === "edit") openForm(t);
+  else if (confirm(`Supprimer « ${t.name} » ?`)) { await store.remove("tasks", t.id); toast("Tâche supprimée"); }
+});
+
+function syncType() {
+  const once = $("fType").value === "once";
+  $("fRec").hidden = once; $("fN").required = !once;
+  $("fDueL").textContent = once ? "Date d’échéance" : "Prochaine échéance";
+}
+$("fType").onchange = syncType;
+function openForm(t) {
+  editing = t;
+  $("fCat").innerHTML = '<option value="">Sans catégorie</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  $("fCat").value = cats.some(c => c.id === t?.cat) ? t.cat : "";
+  $("fName").value = t?.name || ""; $("fDesc").value = t?.desc || "";
+  $("fN").value = t?.n || 7; $("fU").value = t?.u || "d";
+  $("fType").value = t?.once ? "once" : "rec"; syncType();
+  $("fDue").value = toInput(t?.due || Date.now());
+  $("dlg").showModal();
+}
+$("bNew").onclick = () => openForm(null);
+$("fCancel").onclick = () => $("dlg").close();
+$("f").addEventListener("submit", async e => {
+  if (e.submitter?.id !== "fOk") return;
+  const [y, m, d] = $("fDue").value.split("-").map(Number);
+  const once = $("fType").value === "once";
+  const data = { name: $("fName").value.trim(), desc: $("fDesc").value.trim(), once, done: !!(editing?.once && once && editing.done), n: once ? 1 : Math.max(1, +$("fN").value), u: $("fU").value, cat: $("fCat").value, due: new Date(y, m - 1, d).getTime() };
+  if (editing) await store.update("tasks", editing.id, data); else await store.add("tasks", { ...data, history: [] });
+});
+$("bName").onclick = () => askName(true);
+$("bShare").onclick = async () => {
+  try { await navigator.clipboard.writeText(location.href); toast("Lien copié : envoie-le à ton foyer"); }
+  catch { prompt("Copie ce lien :", location.href); }
+};
+function renderCats() {
+  $("catList").innerHTML = cats.length
+    ? [...cats].sort((a, b) => a.name.localeCompare(b.name, "fr")).map(c => `<li><span class="sw" style="background:${okColor(c.color)}"></span><span>${esc(c.name)}</span><button class="danger" data-cid="${c.id}">Supprimer</button></li>`).join("")
+    : `<li class="desc">Aucune catégorie pour l’instant.</li>`;
+}
+$("bCats").onclick = () => { $("cColor").value = PAL[cats.length % PAL.length]; renderCats(); $("dlgCat").showModal(); };
+$("cClose").onclick = () => $("dlgCat").close();
+async function addCat() {
+  const name = $("cName").value.trim(); if (!name) return;
+  if (cats.some(c => c.name.toLowerCase() === name.toLowerCase())) { toast("Cette catégorie existe déjà"); return; }
+  await store.add("categories", { name, color: $("cColor").value });
+  $("cName").value = ""; $("cColor").value = PAL[(cats.length + 1) % PAL.length];
+}
+$("cAdd").onclick = addCat;
+$("cName").addEventListener("keydown", e => { if (e.key === "Enter") addCat(); });
+$("catList").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-cid]"); if (!b) return;
+  const c = cats.find(x => x.id === b.dataset.cid); if (!c) return;
+  const n = tasks.filter(t => t.cat === c.id).length;
+  if (confirm(`Supprimer la catégorie « ${c.name} » ?` + (n ? ` ${n} tâche(s) seront sans catégorie.` : ""))) await store.remove("categories", c.id);
+});
+let nextFor = null;
+$("nCancel").onclick = () => $("dlgNext").close();
+$("nEnd").onclick = async () => {
+  const { t, history } = nextFor; $("dlgNext").close();
+  await store.update("tasks", t.id, { history, done: true }); toast(`« ${t.name} » terminée`);
+};
+$("nOk").onclick = async () => {
+  if (!$("nDate").value) return;
+  const { t, history } = nextFor, [y, m, d] = $("nDate").value.split("-").map(Number), due = new Date(y, m - 1, d).getTime();
+  $("dlgNext").close();
+  await store.update("tasks", t.id, { history, due, done: false }); toast(`Reprogrammée au ${fmt(due)}`);
+};
+addEventListener("hashchange", () => location.reload());
+
+store = await makeStore();
+store.subscribe("tasks", l => { tasks = l; render(); });
+store.subscribe("categories", l => { cats = l; render(); if ($("dlgCat").open) renderCats(); });
+render();
+</script>
+<!--
+README — mise en place (≈10 min)
+
+1) Firebase : console.firebase.google.com → créer un projet → « Ajouter une appli Web » → copier firebaseConfig dans le script ci-dessus.
+2) Authentication → Sign-in method → activer « Anonyme ».
+3) Firestore Database → créer (mode production) → onglet Règles :
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{db}/documents {
+         match /households/{h}/{coll}/{d} {
+           allow read, write: if request.auth != null;
+         }
+       }
+     }
+   (le code du foyer, dans le lien après #, sert de secret partagé)
+4) Authentication → Settings → Authorized domains : ajouter <ton-compte>.github.io
+5) GitHub : nouveau dépôt, ajouter ce fichier sous le nom index.html, puis Settings → Pages → Deploy from branch (main / root).
+6) Ouvrir https://<ton-compte>.github.io/<depot>/ → « Copier le lien » → l’envoyer aux autres membres du foyer.
+-->
+</body>
+</html>
